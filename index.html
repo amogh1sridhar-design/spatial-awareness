@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pilot Spatial Orientation Test</title>
+    <style>
+        :root {
+            --bg-color: #ecf0f1;
+            --instrument-bg: #2c3e50;
+            --highlight: #f1c40f; 
+            --text-dark: #2c3e50;
+            --correct: #27ae60;
+            --wrong: #c0392b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            margin: 0;
+        }
+
+        h2 { margin: 10px 0; color: var(--text-dark); }
+        .timer { font-size: 1.5rem; color: #e74c3c; font-weight: bold; margin-bottom: 20px; }
+
+        /* --- INSTRUMENTS --- */
+        .instruments-container {
+            display: flex;
+            gap: 40px;
+            margin-bottom: 40px; 
+            flex-wrap: wrap;
+            justify-content: center;
+            position: relative;
+            z-index: 1; /* Low priority so it doesn't block buttons */
+        }
+
+        .instrument {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background-color: var(--instrument-bg);
+            border: 6px solid #555;
+            position: relative;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        /* GYRO ELEMENTS */
+        .gyro-card {
+            width: 100%; height: 100%; position: absolute;
+            transition: transform 0.5s ease;
+        }
+        .gyro-label {
+            position: absolute; font-weight: bold; font-size: 20px; color: white;
+            pointer-events: none;
+        }
+        .lbl-n { top: 10px; left: 50%; transform: translateX(-50%); color: #e74c3c; }
+        .lbl-s { bottom: 10px; left: 50%; transform: translateX(-50%); }
+        .lbl-e { right: 10px; top: 50%; transform: translateY(-50%); }
+        .lbl-w { left: 10px; top: 50%; transform: translateY(-50%); }
+        .tick {
+            position: absolute; width: 2px; height: 10px; background: white; left: 50%; top: 0;
+            transform-origin: 0 100px; pointer-events: none;
+        }
+
+        .fixed-plane {
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 0; height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 40px solid white;
+            z-index: 10; pointer-events: none;
+        }
+        .fixed-plane::after {
+            content: ''; position: absolute; top: 25px; left: -30px; width: 60px; height: 8px; background-color: white; border-radius: 2px;
+        }
+        .fixed-plane::before {
+            content: ''; position: absolute; top: 38px; left: -12px; width: 24px; height: 6px; background-color: white;
+        }
+
+        /* RBI ELEMENTS */
+        .rbi-face { width: 100%; height: 100%; position: relative; }
+        .rbi-label {
+            position: absolute; width: 100%; height: 100%;
+            text-align: center; color: white; font-size: 12px; padding-top: 5px;
+            pointer-events: none;
+        }
+        /* NEEDLE FIX: Rotation calibrated to point correctly */
+        .rbi-needle {
+            position: absolute; top: 50%; left: 50%; width: 160px; height: 4px;
+            background-color: var(--highlight);
+            transform: translate(-50%, -50%) rotate(0deg); 
+            transition: transform 0.5s ease;
+            display: flex; justify-content: flex-end; align-items: center;
+            pointer-events: none;
+        }
+        .needle-head {
+            width: 0; height: 0;
+            border-left: 12px solid var(--highlight);
+            border-top: 8px solid transparent;
+            border-bottom: 8px solid transparent;
+            margin-right: -2px;
+        }
+
+        /* --- BUTTONS AREA --- */
+        .inputs-area { 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 20px;
+            position: relative;
+            z-index: 100; /* Keeps buttons clickable */
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(3, 70px);
+            gap: 10px;
+        }
+        .btn-grid {
+            width: 70px; height: 70px;
+            background: #34495e; color: white;
+            font-size: 24px; font-weight: bold;
+            border: none; border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .btn-grid:hover { transform: scale(1.05); background: #2c3e50; }
+        .btn-grid:active { transform: scale(0.95); }
+
+        .btn-center { 
+            background: #7f8c8d; cursor: default; font-size: 14px; 
+            display: flex; align-items: center; justify-content: center;
+            pointer-events: none; 
+        }
+
+        .heading-container { display: flex; gap: 15px; }
+        .btn-head {
+            width: 70px; height: 70px;
+            background: #34495e; border: none; border-radius: 8px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: transform 0.1s;
+        }
+        .btn-head:hover { transform: scale(1.05); background: #2c3e50; }
+        
+        /* Heading Arrows */
+        .arrow {
+            width: 0; height: 0;
+            border-left: 12px solid transparent;
+            border-right: 12px solid transparent;
+            border-bottom: 24px solid white;
+            pointer-events: none;
+        }
+        .rot-0 { transform: rotate(0deg); }
+        .rot-90 { transform: rotate(90deg); }
+        .rot-180 { transform: rotate(180deg); }
+        .rot-270 { transform: rotate(-90deg); }
+
+        /* States */
+        .selected { background-color: #2980b9; border: 4px solid var(--highlight); }
+        .correct { background-color: #27ae60 !important; }
+        .wrong { background-color: #c0392b !important; opacity: 0.6; }
+
+        /* --- CONTROLS --- */
+        .explanation-box {
+            background: white; border: 2px solid #3498db; padding: 15px;
+            margin-top: 20px; border-radius: 10px; max-width: 400px;
+            text-align: left; font-size: 14px; display: none; line-height: 1.5;
+            z-index: 100;
+        }
+        .explanation-box strong { color: #2980b9; }
+
+        .controls { margin-top: 20px; z-index: 100; }
+        .btn-action {
+            padding: 15px 40px; font-size: 18px; color: white; 
+            border: none; border-radius: 30px; cursor: pointer; font-weight: bold;
+        }
+        .btn-submit { background-color: #f39c12; }
+        .btn-next { background-color: #27ae60; display: none; }
+
+    </style>
+</head>
+<body>
+
+    <h2>Spatial Orientation</h2>
+    <div class="timer" id="timer">03:00</div>
+
+    <div class="instruments-container">
+        <div class="instrument">
+            <div class="gyro-card" id="gyroCard">
+                <div class="gyro-label lbl-n">N</div>
+                <div class="gyro-label lbl-e">E</div>
+                <div class="gyro-label lbl-s">S</div>
+                <div class="gyro-label lbl-w">W</div>
+                <div class="tick" style="transform: rotate(0deg)"></div>
+                <div class="tick" style="transform: rotate(90deg)"></div>
+                <div class="tick" style="transform: rotate(180deg)"></div>
+                <div class="tick" style="transform: rotate(270deg)"></div>
+            </div>
+            <div class="fixed-plane"></div>
+        </div>
+
+        <div class="instrument">
+            <div class="rbi-face">
+                <div class="rbi-label" style="transform: rotate(0deg)">0</div>
+                <div class="rbi-label" style="transform: rotate(45deg)">45</div>
+                <div class="rbi-label" style="transform: rotate(90deg)">90</div>
+                <div class="rbi-label" style="transform: rotate(135deg)">135</div>
+                <div class="rbi-label" style="transform: rotate(180deg)">180</div>
+                <div class="rbi-label" style="transform: rotate(225deg)">225</div>
+                <div class="rbi-label" style="transform: rotate(270deg)">270</div>
+                <div class="rbi-label" style="transform: rotate(315deg)">315</div>
+                
+                <div class="rbi-needle" id="rbiNeedle">
+                    <div class="needle-head"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="inputs-area">
+        <div class="grid-container">
+            <button class="btn-grid" onclick="selectSector(8, this)">8</button>
+            <button class="btn-grid" onclick="selectSector(1, this)">1</button>
+            <button class="btn-grid" onclick="selectSector(2, this)">2</button>
+            <button class="btn-grid" onclick="selectSector(7, this)">7</button>
+            <div class="btn-grid btn-center">VOR</div>
+            <button class="btn-grid" onclick="selectSector(3, this)">3</button>
+            <button class="btn-grid" onclick="selectSector(6, this)">6</button>
+            <button class="btn-grid" onclick="selectSector(5, this)">5</button>
+            <button class="btn-grid" onclick="selectSector(4, this)">4</button>
+        </div>
+
+        <div class="heading-container">
+            <button class="btn-head" onclick="selectHeading(0, this)"><div class="arrow rot-0"></div></button>
+            <button class="btn-head" onclick="selectHeading(270, this)"><div class="arrow rot-270"></div></button>
+            <button class="btn-head" onclick="selectHeading(90, this)"><div class="arrow rot-90"></div></button>
+            <button class="btn-head" onclick="selectHeading(180, this)"><div class="arrow rot-180"></div></button>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button class="btn-action btn-submit" id="submitBtn" onclick="submitAnswer()">SUBMIT ANSWER</button>
+        <button class="btn-action btn-next" id="nextBtn" onclick="generateQuestion()">NEXT QUESTION</button>
+    </div>
+
+    <div class="explanation-box" id="explanation"></div>
+
+<script>
+    // --- EXACT ANSWER KEY DATABASE ---
+    // [Heading] : { [RBI]: Sector }
+    const answerKey = {
+        0: { // N
+            0: 5, 45: 6, 90: 7, 135: 8, 180: 1, 225: 2, 270: 3, 315: 4
+        },
+        180: { // S
+            0: 1, 45: 2, 90: 3, 135: 4, 180: 5, 225: 6, 270: 7, 315: 8
+        },
+        90: { // E
+            0: 7, 45: 8, 90: 1, 135: 2, 180: 3, 225: 4, 270: 5, 315: 6
+        },
+        270: { // W
+            0: 3, 45: 4, 90: 5, 135: 6, 180: 7, 225: 8, 270: 1, 315: 2
+        }
+    };
+
+    // --- Variables ---
+    let currentHeading = 0; 
+    let currentRBI = 0;     
+    let userSector = null;
+    let userHeading = null;
+    let timerVal = 180;
+    let isFrozen = false;
+
+    // --- Timer ---
+    setInterval(() => {
+        if(timerVal > 0) {
+            timerVal--;
+            let m = Math.floor(timerVal / 60);
+            let s = timerVal % 60;
+            document.getElementById('timer').innerText = `0${m}:${s<10?'0'+s:s}`;
+        }
+    }, 1000);
+
+    // --- Logic ---
+    function generateQuestion() {
+        isFrozen = false;
+        userSector = null;
+        userHeading = null;
+        
+        document.getElementById('explanation').style.display = 'none';
+        document.getElementById('submitBtn').style.display = 'inline-block';
+        document.getElementById('nextBtn').style.display = 'none';
+        
+        document.querySelectorAll('button').forEach(b => {
+            b.classList.remove('selected', 'correct', 'wrong');
+        });
+
+        const headings = [0, 90, 180, 270];
+        currentHeading = headings[Math.floor(Math.random() * headings.length)];
+        currentRBI = Math.floor(Math.random() * 8) * 45;
+
+        // Visual Updates
+        // Gyro: Heading 90 means card rotates -90 so E is top.
+        document.getElementById('gyroCard').style.transform = `rotate(${-currentHeading}deg)`;
+        
+        // RBI: 0 degrees needs to point UP. 
+        // In CSS, 0 degrees is Right (3 o'clock). 
+        // So we subtract 90 degrees to make 0 point Up.
+        document.getElementById('rbiNeedle').style.transform = `translate(-50%, -50%) rotate(${currentRBI - 90}deg)`;
+    }
+
+    // --- Inputs ---
+    function selectSector(val, btn) {
+        if(isFrozen) return;
+        userSector = val;
+        // UI Update
+        document.querySelectorAll('.btn-grid').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    }
+
+    function selectHeading(val, btn) {
+        if(isFrozen) return;
+        userHeading = val;
+        // UI Update
+        document.querySelectorAll('.btn-head').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+    }
+
+    // --- Submit ---
+    function submitAnswer() {
+        if(userSector === null || userHeading === null) return;
+        isFrozen = true;
+
+        const correctH = currentHeading;
+        const correctS = answerKey[currentHeading][currentRBI];
+
+        const isCorrect = (userSector === correctS && userHeading === correctH);
+        
+        document.querySelectorAll('.selected').forEach(b => b.classList.add(isCorrect ? 'correct' : 'wrong'));
+        
+        if(!isCorrect) {
+            const grids = document.querySelectorAll('.btn-grid');
+            grids.forEach(b => { if(parseInt(b.innerText) === correctS) b.classList.add('correct'); });
+            
+            const heads = document.querySelectorAll('.btn-head');
+            if(correctH === 0) heads[0].classList.add('correct');
+            if(correctH === 270) heads[1].classList.add('correct');
+            if(correctH === 90) heads[2].classList.add('correct');
+            if(correctH === 180) heads[3].classList.add('correct');
+        }
+
+        const explainBox = document.getElementById('explanation');
+        explainBox.style.display = 'block';
+        const hText = (currentHeading === 0) ? "North" : (currentHeading===90) ? "East" : (currentHeading===180) ? "South" : "West";
+        
+        explainBox.innerHTML = `
+            <strong>Results:</strong><br>
+            Gyro: ${hText} (${currentHeading}°)<br>
+            RBI: ${currentRBI}°<br>
+            Correct Sector: <strong>${correctS}</strong>
+        `;
+
+        document.getElementById('submitBtn').style.display = 'none';
+        document.getElementById('nextBtn').style.display = 'inline-block';
+    }
+
+    // Start
+    generateQuestion();
+
+</script>
+</body>
+</html>
